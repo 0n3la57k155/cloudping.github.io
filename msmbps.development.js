@@ -1,25 +1,3 @@
-//
-//
-//
-// JSX code of "PING ms"
-// The full project is at https://github.com/pingms/pingms
-//
-// @pingms founded the project.
-// @codehz greatly improved it.
-// @pingms fixed the jitter problem(with several HTTP pings).
-// @pingms added "Test Download".
-// @pingms added timeout of 6 seconds.
-// @codehz contributed the color effect.
-// @pingms improved the compatibility of color effect.
-// @pingms converted native JS into JSX with ReactJS.
-// @pingms made simultaneous HTTP pings.
-// @pingms added "Notice" showing server address.
-//
-// (@pingms - https://github.com/pingms)
-// (@codehz - https://github.com/codehz)
-//
-//
-//
 class Bar extends React.Component {
     render() {
         return <div className="bar" style={{background: "rgb("+
@@ -53,19 +31,13 @@ class Name extends React.Component {
         const i = s.indexOf("://")+3;
         const j = s.indexOf("/",i);
         const server = s.substring(i, j);
-        this.props.showNotice(server);
-        if(this.props.download!=void(0)) {
-            if(!this.props.allProvidersFinished()) {
-                this.props.showMessage();
-            }
-            window.open(this.props.download, "_blank");
-        }
+        this.props.showNotice(this.props.provider, this.props.locationName, server, this.props.download);
     }
     render() {
         const spanStyle = {
             cursor: (this.props.download==void(0)?"help":"pointer"),
         };
-        return <span className="name" onClick={this.handleClick} style={spanStyle} download={this.props.download}>
+        return <span className="name" onClick={this.handleClick} style={spanStyle}>
                {this.props.locationName}
                <Tip className="tip" downloadText={this.props.download==void(0)?"Show Server":"Server&Download"}/>
                </span>;
@@ -78,8 +50,7 @@ class Line extends React.Component {
                zIndex: this.props.number - this.props.index + 1}}>
                <Milliseconds milliseconds={this.props.milliseconds} />
                <Name locationName={this.props.name} download={this.props.download}
-               allProvidersFinished={this.props.allProvidersFinished}
-               showMessage={this.props.showMessage}
+               provider={this.props.provider}
                url={this.props.url}
                showNotice={this.props.showNotice} />
                <Bar milliseconds={this.props.milliseconds} maxMilliseconds={this.props.maxMilliseconds} />
@@ -223,8 +194,7 @@ class List extends React.Component {
                    maxMilliseconds={Math.max(...this.state.millisecondsOfTargets)}
                    index={this.state.rankList[index].rank}
                    number={this.state.rankList.length}
-                   allProvidersFinished={this.props.allProvidersFinished}
-                   showMessage={this.props.showMessage}
+                   provider={this.props.provider}
                    showNotice={this.props.showNotice}
                    ref={this.lineRef[index]} />;
         }.bind(this))}</div>;
@@ -241,30 +211,47 @@ class Message extends React.Component {
     render() {
         return <div className={"message"}
                style={{visibility: this.props.messageVisible?"visible":"hidden"}}>
-               During download, ping might not be precise.<br /><br /><br />
+               During download, ping might not be precise.<br /><br />
                <div style={{textAlign: "center"}}>
-               <a href={'javascript:void(0);'} onClick={this.reload}>Reload</a>
+               <a className={"larger"} href={'javascript:void(0);'} onClick={this.reload}>Reload</a>
                <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-               <a href={'javascript:void(0);'} onClick={this.props.hideMessage}>Close</a>
+               <a className={"larger"} href={'javascript:void(0);'} onClick={this.props.hideMessage}>Close</a>
                </div></div>;
     }
 }
 class Notice extends React.Component {
+    constructor(props) {
+        super(props);
+        this.handleClick=this.handleClick.bind(this);
+    }
+    handleClick() {
+        if(this.props.clickedDownload==void(0)){
+            return;
+        }
+        if(!this.props.allProvidersFinished()) {
+            this.props.showMessage();
+        }
+        window.open(this.props.clickedDownload, "_blank");
+    }
     render() {
         return <div className={"notice"}
                style={{visibility: this.props.noticeVisible?"visible":"hidden"}}>
+               <span className={"bold"}>{this.props.clickedProvider}</span><br />
+               {this.props.clickedName} <br />
+               <a className={"larger"} href={"javascript:void(0)"} onClick={this.handleClick}>{this.props.clickedDownload==void(0)?"No Download":"Test Download"}</a><br /><br />
                <textarea className={"server"} readOnly={true}
-               value={this.props.server}></textarea>
-               <div style={{textAlign: "center"}}>
+               value={this.props.clickedServer}></textarea>
+               <div>
                <span style={{fontStyle: "italic"}}>Copy server address<br />for further testing</span><br /><br />
-               <a href={'javascript:void(0);'} onClick={this.props.hideNotice}>Close</a>
+               <a className={"larger"} href={'javascript:void(0);'} onClick={this.props.hideNotice}>Close</a>
                </div></div>;
     }
 }
 class App extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {allData: data, messageVisible: false, noticeVisible: false, server: "abc"};
+        this.state = {allData: data, messageVisible: false, noticeVisible: false,
+                      clickedProvider: "", clickedName: "", clickedServer: "", clickedDownload: ""};
         this.data = {countOfFinishedProviders: 0};
         this.providerFinished=this.providerFinished.bind(this);
         this.allProvidersFinished=this.allProvidersFinished.bind(this);
@@ -285,14 +272,16 @@ class App extends React.Component {
     hideMessage() {
         this.setState({messageVisible: false});
     }
-    showNotice(server) {
+    showNotice(clickedProvider, clickedName, clickedServer, clickedDownload) {
         function selectServerText() {
             const a = document.getElementsByClassName("server");
             for(let i=0; i<=a.length-1;i++) {
                 a[i].select();
             }
         }
-        this.setState({server: server, noticeVisible: true});
+        this.setState({clickedProvider: clickedProvider, clickedName: clickedName,
+                       clickedServer: clickedServer, clickedDownload: clickedDownload,
+                       noticeVisible: true});
         setTimeout(selectServerText, 500);
     }
     hideNotice() {
@@ -300,14 +289,20 @@ class App extends React.Component {
     }
     render() {
         return <div><Message messageVisible={this.state.messageVisible} hideMessage={this.hideMessage} />
-               <Notice noticeVisible={this.state.noticeVisible} hideNotice={this.hideNotice} server={this.state.server}/>
+               <Notice noticeVisible={this.state.noticeVisible} hideNotice={this.hideNotice}
+                allProvidersFinished={this.allProvidersFinished}
+                showMessage={this.showMessage}
+                clickedProvider={this.state.clickedProvider}
+                clickedName={this.state.clickedName}
+                clickedServer={this.state.clickedServer}
+                clickedDownload={this.state.clickedDownload} />
                {Object.keys(this.state.allData).map(function (item, index){
                    const sectionStyle = {height: this.state.allData[item].length*(18+2) + 30 + "px"};
                    return (
                        <div className={"section"} key={index} style={sectionStyle}><h3>{item}</h3>
-                       <List providerFinished={this.providerFinished}
-                       allProvidersFinished={this.allProvidersFinished}
-                       showMessage={this.showMessage}
+                       <List
+                       provider={item}
+                       providerFinished={this.providerFinished}
                        showNotice={this.showNotice}
                        targets={this.state.allData[item]}/></div>
                    );
@@ -317,11 +312,3 @@ class App extends React.Component {
 function main() {
     ReactDOM.render(<App />, document.getElementById("result"));
 }
-//
-//
-//
-// END OF FILE
-// The full project is at https://github.com/pingms/pingms
-//
-//
-//
